@@ -8,9 +8,14 @@ from app.services.github_service import GitHubService
 eleven_labs_service = ElevenLabsService()
 gemini_service = GeminiService()
 
+# Buffer to store audio chunks for each client
+audio_buffers = {}
+
 @socketio.on('connect')
 def handle_connect(auth):
     print('Client connected')
+    audio_buffers[request.sid] = bytearray()
+    
     token = auth.get('token') if auth else None
     if token:
         session['github_token'] = token
@@ -23,13 +28,16 @@ def handle_connect(auth):
 @socketio.on('disconnect')
 def handle_disconnect():
     print('Client disconnected')
+    if request.sid in audio_buffers:
+        del audio_buffers[request.sid]
 
 @socketio.on('audio_stream')
 def handle_audio_stream(data):
     # Data is expected to be a binary chunk of audio
-    # For now, we'll just acknowledge receipt
-    # In a real implementation, we'd buffer this for VAD or stream to STT
-    pass
+    sid = request.sid
+    if sid in audio_buffers:
+        audio_buffers[sid].extend(data)
+        print(f"Received audio chunk: {len(data)} bytes")
 
 @socketio.on('end_of_speech')
 def handle_end_of_speech(data):
@@ -37,8 +45,31 @@ def handle_end_of_speech(data):
     emit('status_change', {'state': 'ANALYZING', 'description': 'Processing voice command...'})
     
     user_text = data.get('text', '')
+    
+    # Process audio buffer if available
+    sid = request.sid
+    if sid in audio_buffers and len(audio_buffers[sid]) > 0:
+        print(f"Transcribing {len(audio_buffers[sid])} bytes of audio...")
+        emit('status_change', {'state': 'ANALYZING', 'description': 'Transcribing audio...'})
+        transcription = eleven_labs_service.transcribe_audio(bytes(audio_buffers[sid]))
+        if transcription:
+            print(f"Transcription: {transcription}")
+            # If transcription is an object, extract text (ElevenLabs returns generic response sometimes)
+            # Assuming 'transcription' is just the text or we need to access .text
+            # Scribe usually returns a transcription object.
+            # Let's handle string or object.
+            if hasattr(transcription, 'text'):
+                user_text = transcription.text
+            else:
+                 # Check if it's a list or dictionary if dependent on SDK version
+                 user_text = str(transcription)
+
+        # Clear buffer
+        audio_buffers[sid] = bytearray()
+
     if user_text:
         print(f"User said: {user_text}")
+        emit('user_message', {'content': user_text})
         
         # Get context from GitHub if token exists
         repo_context = None

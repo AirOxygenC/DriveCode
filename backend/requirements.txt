@@ -4,9 +4,10 @@ Flask-SocketIO==5.3.6
 python-dotenv==1.0.0
 requests==2.31.0
 google-generativeai==0.3.1
-elevenlabs==0.2.27
+elevenlabs>=1.0.0
 PyGithub==2.1.1
 pytest==7.4.3
 simple-websocket==1.0.0
 gevent==23.9.1
 gevent-websocket==0.10.1
+elevenlabs

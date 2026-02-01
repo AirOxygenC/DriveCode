@@ -78,6 +78,11 @@ export function VoiceInterface({ selectedRepo, onBack, token }: VoiceInterfacePr
       }
     })
 
+    newSocket.on("user_message", (data: any) => {
+      setMessages((prev) => [...prev, { role: "user", content: data.content }])
+      setTranscript("")
+    })
+
     newSocket.on("audio_output", (data: any) => {
       // Handle audio stream (for now just log it, or we could play it)
       console.log("Received audio output", data)
@@ -93,58 +98,52 @@ export function VoiceInterface({ selectedRepo, onBack, token }: VoiceInterfacePr
     }
   }, [])
 
-  const toggleListening = () => {
-    if (isListening) {
-      setIsListening(false)
-      setTranscript("")
-      // User manually stopped.
-      // In a real STT, we'd send what we have.
-      // Here we assume the simulation finished or user cancelled.
-      setStatus("connected")
-    } else {
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = recorder
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0 && socket) {
+          socket.emit("audio_stream", event.data)
+        }
+      }
+
+      recorder.start(1000) // Chunk every 1 second
       setIsListening(true)
       setStatus("listening")
-      // Simulate speech recognition then send to backend
-      simulateSpeechRecognition()
+      setTranscript("Listening...")
+    } catch (err) {
+      console.error("Error accessing microphone:", err)
+      setIsListening(false)
     }
   }
 
-  const simulateSpeechRecognition = () => {
-    const phrases = [
-      "Create a new function that handles user authentication",
-      "Add a button component with hover effects",
-      "Implement a dark mode toggle feature",
-    ]
-    const randomPhrase = phrases[Math.floor(Math.random() * phrases.length)]
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop()
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
 
-    let currentText = ""
-    const words = randomPhrase.split(" ")
-    let wordIndex = 0
-
-    const interval = setInterval(() => {
-      if (wordIndex < words.length) {
-        currentText += (wordIndex > 0 ? " " : "") + words[wordIndex]
-        setTranscript(currentText)
-        wordIndex++
-      } else {
-        clearInterval(interval)
-        // Send to backend!
-        handleUserMessage(randomPhrase)
+      if (socket) {
+        // Send end of speech with repo context
+        socket.emit("end_of_speech", {
+          repo_name: selectedRepo.full_name
+        })
       }
-    }, 200)
+
+      setIsListening(false)
+      setTranscript("Processing...")
+    }
   }
 
-  const handleUserMessage = (text: string) => {
-    setMessages((prev) => [...prev, { role: "user", content: text }])
-    setTranscript("")
-    setIsListening(false)
-
-    if (socket) {
-      // Send to backend
-      socket.emit("end_of_speech", {
-        text: text,
-        repo_name: selectedRepo.full_name
-      })
+  const toggleListening = () => {
+    if (isListening) {
+      stopRecording()
+    } else {
+      startRecording()
     }
   }
 
