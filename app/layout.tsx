@@ -10,7 +10,6 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: 'Voice Loop - Drive. Speak. Ship.',
   description: 'Voice-powered coding assistant. Transform your ideas into code while driving with AI-powered development and GitHub integration.',
-  generator: 'v0.app',
   icons: {
     icon: [
       {

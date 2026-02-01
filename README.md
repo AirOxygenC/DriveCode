@@ -1,30 +1,39 @@
-# Voice interface UI
+# Voice Loop
 
-*Automatically synced with your [v0.app](https://v0.app) deployments*
+Voice-powered coding assistant. Transform your ideas into code while driving with AI-powered development and GitHub integration.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/claires-projects-98645e10/v0-voice123)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/kLOzf3tAS6n)
+## Features
 
-## Overview
+- **Voice Interface**: Interact with your codebase using natural language.
+- **AI-Powered**: Leverages advanced AI to understand and generate code.
+- **GitHub Integration**: Seamlessly syncs with your repositories.
+- **Drive Mode**: Optimized for safe usage while driving.
 
-This repository will stay in sync with your deployed chats on [v0.app](https://v0.app).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.app](https://v0.app).
+## Getting Started
 
-## Deployment
+First, run the development server:
 
-Your project is live at:
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
 
-**[https://vercel.com/claires-projects-98645e10/v0-voice123](https://vercel.com/claires-projects-98645e10/v0-voice123)**
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Build your app
+## Learn More
 
-Continue building your app on:
+To learn more about Next.js, take a look at the following resources:
 
-**[https://v0.app/chat/kLOzf3tAS6n](https://v0.app/chat/kLOzf3tAS6n)**
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-## How It Works
+## Deploy on Vercel
 
-1. Create and modify your project using [v0.app](https://v0.app)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
