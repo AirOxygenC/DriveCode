@@ -1,0 +1,81 @@
+import sys
+from pathlib import Path
+from typing import Final
+
+# --- Configuration Constants ---
+# Define the relative path to the target file within the repository structure.
+TARGET_FILE_PATH: Final[Path] = Path("frontend") / "index.html"
+# The exact text content the user intends to add.
+CONTENT_TO_ADD: Final[str] = "goodbye world"
+# Define the sensible HTML marker for content insertion (before closing body tag).
+INSERTION_MARKER: Final[str] = "</body>"
+# -------------------------------
+
+def insert_content_into_html(
+    target_path: Path, content_to_insert: str, marker: str
+) -> bool:
+    """
+    Inserts specified content immediately before a defined HTML marker (e.g., </body>)
+    in the target file.
+
+    Follows expert practices by using pathlib for robust path handling and utf-8 encoding.
+
+    Args:
+        target_path: The full or relative path object to the HTML file.
+        content_to_insert: The text string to be added.
+        marker: The HTML tag/marker before which content should be inserted.
+
+    Returns:
+        True if the file was successfully modified, False otherwise.
+    """
+    if not target_path.exists():
+        print(f"Error: Target file not found at {target_path.resolve()}", file=sys.stderr)
+        return False
+
+    try:
+        # Read existing content using robust UTF-8 encoding
+        original_content = target_path.read_text(encoding="utf-8")
+
+        # Prepare the content block for insertion, ensuring it's clearly separated
+        insertion_block = (
+            f"\n    <!-- INSERTED: {Path(__file__).name} -->\n"
+            f"    <p>{content_to_insert}</p>\n"
+        )
+
+        # Check if the insertion marker exists and perform modification
+        if marker not in original_content:
+            print(
+                f"Warning: Insertion marker '{marker}' not found. Appending content.",
+                file=sys.stderr,
+            )
+            modified_content = original_content + insertion_block
+        else:
+            # Replace the first occurrence of the marker with the new content block + marker
+            modified_content = original_content.replace(
+                marker, f"{insertion_block}{marker}", 1
+            )
+
+        # Write modified content back to the file
+        target_path.write_text(modified_content, encoding="utf-8")
+
+        print(f"Successfully added content to: {target_path}")
+        return True
+
+    except IOError as e:
+        print(f"IO Error processing file {target_path}: {e}", file=sys.stderr)
+        return False
+    except Exception as e:
+        print(f"An unexpected error occurred during modification: {e}", file=sys.stderr)
+        return False
+
+
+if __name__ == "__main__":
+    # Assumes execution from the root directory of the repository (AirOxygenC/voice123)
+    success = insert_content_into_html(
+        target_path=TARGET_FILE_PATH,
+        content_to_insert=CONTENT_TO_ADD,
+        marker=INSERTION_MARKER,
+    )
+
+    if not success:
+        sys.exit(1)
