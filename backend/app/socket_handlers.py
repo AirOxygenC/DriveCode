@@ -54,15 +54,15 @@ def handle_end_of_speech(data):
         transcription = eleven_labs_service.transcribe_audio(bytes(audio_buffers[sid]))
         if transcription:
             print(f"Transcription: {transcription}")
-            # If transcription is an object, extract text (ElevenLabs returns generic response sometimes)
-            # Assuming 'transcription' is just the text or we need to access .text
-            # Scribe usually returns a transcription object.
-            # Let's handle string or object.
+            # ElevenLabs Scribe returns an object with 'text' or 'words'
+            # Extract the text content
             if hasattr(transcription, 'text'):
                 user_text = transcription.text
+            elif hasattr(transcription, 'words'):
+                # Join all word texts
+                user_text = ''.join([w.text for w in transcription.words if hasattr(w, 'text')])
             else:
-                 # Check if it's a list or dictionary if dependent on SDK version
-                 user_text = str(transcription)
+                user_text = str(transcription)
 
         # Clear buffer
         audio_buffers[sid] = bytearray()

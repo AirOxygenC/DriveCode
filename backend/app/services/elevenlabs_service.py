@@ -17,13 +17,14 @@ class ElevenLabsService:
         try:
             # Create a file-like object from bytes
             audio_file = BytesIO(audio_data)
+            audio_file.name = "recording.webm"  # Help ElevenLabs identify format
             
             transcription = self.client.speech_to_text.convert(
                 file=audio_file,
                 model_id="scribe_v2",
-                tag_audio_events=True,
+                tag_audio_events=False,  # Disable to simplify response
                 language_code="eng",
-                diarize=True
+                diarize=False  # Disable speaker diarization to simplify
             )
             return transcription
         except Exception as e:
