@@ -156,8 +156,17 @@ export function VoiceInterface({ selectedRepo, onBack, token }: VoiceInterfacePr
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0 && socket) {
+          console.log(`Sending audio chunk: ${event.data.size} bytes`)
           socket.emit("audio_stream", event.data)
         }
+      }
+
+      recorder.onstop = () => {
+        console.log("Recording stopped, cleaning up...")
+        // Stop all tracks to release microphone
+        stream.getTracks().forEach(track => track.stop())
+        // Clear the ref for next recording
+        mediaRecorderRef.current = null
       }
 
       recorder.start(1000) // Chunk every 1 second
@@ -172,8 +181,9 @@ export function VoiceInterface({ selectedRepo, onBack, token }: VoiceInterfacePr
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      console.log("Stopping recording...")
       mediaRecorderRef.current.stop()
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
+      // Stream cleanup happens in onstop handler
 
       if (socket) {
         // Send end of speech with repo context
