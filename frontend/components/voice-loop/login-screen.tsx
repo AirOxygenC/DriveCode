@@ -29,9 +29,18 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             System Online
           </Badge>
 
+          {/* DriveCode Logo */}
+          <div className="flex justify-center py-4">
+            <img
+              src="/DriveCodelogo.png"
+              alt="DriveCode Logo"
+              className="h-32 w-auto object-contain"
+            />
+          </div>
+
           <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-balance">
-            <span className="text-foreground">Voice</span>
-            <span className="text-accent">Loop</span>
+            <span className="text-foreground">Drive</span>
+            <span className="text-accent">Code</span>
           </h1>
 
           <p className="text-xl text-muted-foreground font-medium tracking-wide">

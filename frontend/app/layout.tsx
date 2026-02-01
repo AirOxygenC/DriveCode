@@ -11,21 +11,8 @@ export const metadata: Metadata = {
   title: 'DriveCode - Drive. Speak. Ship.',
   description: 'Voice-powered coding assistant. Transform your ideas into code while driving with AI-powered development and GitHub integration.',
   icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
+    icon: '/steering-wheel-32x32.png',
+    apple: '/steering-wheel-32x32.png',
   },
 }
 
