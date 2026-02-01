@@ -69,9 +69,15 @@ def handle_end_of_speech(data):
     # Process audio buffer if available
     sid = request.sid
     if sid in audio_buffers and len(audio_buffers[sid]) > 0:
-        print(f"Transcribing {len(audio_buffers[sid])} bytes of audio...")
+        # Extract audio data and clear buffer IMMEDIATELY to prevent contamination
+        # from new chunks arriving during transcription
+        audio_data = bytes(audio_buffers[sid])
+        audio_buffers[sid] = []
+        
+        print(f"Transcribing {len(audio_data)} bytes of audio...")
         emit('status_change', {'state': 'ANALYZING', 'description': 'Transcribing audio...'})
-        transcription = eleven_labs_service.transcribe_audio(bytes(audio_buffers[sid]))
+        transcription = eleven_labs_service.transcribe_audio(audio_data)
+        
         if transcription:
             print(f"Transcription: {transcription}")
             # ElevenLabs Scribe returns an object with 'text' or 'words'
