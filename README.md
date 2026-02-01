@@ -21,7 +21,7 @@ Voice-powered coding assistant. Transform your ideas into code while driving wit
 1. **Clone and Install**
 ```bash
 git clone <your-repo>
-cd voice123
+cd DriveCode
 
 # Frontend
 cd frontend
