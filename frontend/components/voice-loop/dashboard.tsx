@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -20,6 +20,7 @@ import {
 interface Repo {
   id: number
   name: string
+  full_name: string
   private: boolean
   language: string | null
   updated_at: string
@@ -30,16 +31,13 @@ interface DashboardProps {
   selectedRepo: Repo | null
   onStartCoding: () => void
   onSignOut: () => void
+  token: string | null
 }
 
 // Mock data for demonstration
 const MOCK_REPOS: Repo[] = [
-  { id: 1, name: "voice-loop-app", private: false, language: "TypeScript", updated_at: "2025-01-30T10:00:00Z" },
-  { id: 2, name: "ai-assistant", private: true, language: "Python", updated_at: "2025-01-28T15:30:00Z" },
-  { id: 3, name: "react-components", private: false, language: "JavaScript", updated_at: "2025-01-25T09:00:00Z" },
-  { id: 4, name: "api-gateway", private: true, language: "Go", updated_at: "2025-01-20T12:00:00Z" },
-  { id: 5, name: "mobile-app", private: false, language: "Swift", updated_at: "2025-01-18T16:45:00Z" },
-  { id: 6, name: "data-pipeline", private: true, language: "Python", updated_at: "2025-01-15T08:30:00Z" },
+  { id: 1, name: "voice-loop-app", full_name: "demo/voice-loop-app", private: false, language: "TypeScript", updated_at: "2025-01-30T10:00:00Z" },
+  { id: 2, name: "ai-assistant", full_name: "demo/ai-assistant", private: true, language: "Python", updated_at: "2025-01-28T15:30:00Z" },
 ]
 
 const MOCK_USER = {
@@ -47,10 +45,30 @@ const MOCK_USER = {
   avatar_url: "https://github.com/github.png",
 }
 
-export function Dashboard({ onSelectRepo, selectedRepo, onStartCoding, onSignOut }: DashboardProps) {
-  const [loading] = useState(false)
-  const repos = MOCK_REPOS
-  const user = MOCK_USER
+export function Dashboard({ onSelectRepo, selectedRepo, onStartCoding, onSignOut, token }: DashboardProps) {
+  const [loading, setLoading] = useState(false)
+  const [repos, setRepos] = useState<Repo[]>(MOCK_REPOS)
+  const [user, setUser] = useState(MOCK_USER)
+
+  useEffect(() => {
+    if (token) {
+      setLoading(true)
+      // Fetch User and Repos
+      Promise.all([
+        fetch('https://api.github.com/user', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('https://api.github.com/user/repos?sort=updated&per_page=10', { headers: { Authorization: `Bearer ${token}` } })
+      ]).then(async ([userRes, reposRes]) => {
+        if (userRes.ok) {
+          const userData = await userRes.json()
+          setUser(userData)
+        }
+        if (reposRes.ok) {
+          const reposData = await reposRes.json()
+          setRepos(reposData)
+        }
+      }).finally(() => setLoading(false))
+    }
+  }, [token])
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -121,31 +139,26 @@ export function Dashboard({ onSelectRepo, selectedRepo, onStartCoding, onSignOut
                     <button
                       key={repo.id}
                       onClick={() => onSelectRepo(repo)}
-                      className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-200 text-left group ${
-                        selectedRepo?.id === repo.id
-                          ? "bg-accent/15 border-2 border-accent"
-                          : "bg-secondary/30 border-2 border-transparent hover:bg-secondary/50 hover:border-border"
-                      }`}
+                      className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-200 text-left group ${selectedRepo?.id === repo.id
+                        ? "bg-accent/15 border-2 border-accent"
+                        : "bg-secondary/30 border-2 border-transparent hover:bg-secondary/50 hover:border-border"
+                        }`}
                     >
-                      <div className={`p-2.5 rounded-lg ${
-                        selectedRepo?.id === repo.id
-                          ? "bg-accent/20"
-                          : "bg-secondary group-hover:bg-secondary/80"
-                      }`}>
+                      <div className={`p-2.5 rounded-lg ${selectedRepo?.id === repo.id
+                        ? "bg-accent/20"
+                        : "bg-secondary group-hover:bg-secondary/80"
+                        }`}>
                         {repo.private ? (
-                          <Lock className={`h-5 w-5 ${
-                            selectedRepo?.id === repo.id ? "text-accent" : "text-muted-foreground"
-                          }`} />
+                          <Lock className={`h-5 w-5 ${selectedRepo?.id === repo.id ? "text-accent" : "text-muted-foreground"
+                            }`} />
                         ) : (
-                          <FolderGit2 className={`h-5 w-5 ${
-                            selectedRepo?.id === repo.id ? "text-accent" : "text-muted-foreground"
-                          }`} />
+                          <FolderGit2 className={`h-5 w-5 ${selectedRepo?.id === repo.id ? "text-accent" : "text-muted-foreground"
+                            }`} />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`font-semibold truncate ${
-                          selectedRepo?.id === repo.id ? "text-foreground" : "text-foreground"
-                        }`}>
+                        <p className={`font-semibold truncate ${selectedRepo?.id === repo.id ? "text-foreground" : "text-foreground"
+                          }`}>
                           {repo.name}
                         </p>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">

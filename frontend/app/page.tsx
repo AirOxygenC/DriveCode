@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { LoginScreen } from "@/components/voice-loop/login-screen"
 import { CallbackScreen } from "@/components/voice-loop/callback-screen"
 import { Dashboard } from "@/components/voice-loop/dashboard"
@@ -11,6 +11,7 @@ type Screen = "login" | "callback" | "dashboard" | "voice"
 interface Repo {
   id: number
   name: string
+  full_name: string
   private: boolean
   language: string | null
   updated_at: string
@@ -20,14 +21,24 @@ export default function VoiceLoopApp() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("login")
   const [selectedRepo, setSelectedRepo] = useState<Repo | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [token, setToken] = useState<string | null>(null)
 
-  const handleLogin = () => {
-    setCurrentScreen("callback")
-    // Simulate authentication
-    setTimeout(() => {
+  // Check for token on mount (callback handling)
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    const tokenParam = searchParams.get("token")
+    if (tokenParam) {
+      setToken(tokenParam)
       setIsAuthenticated(true)
       setCurrentScreen("dashboard")
-    }, 2000)
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+  }, [])
+
+  const handleLogin = () => {
+    // Redirect to backend for GitHub OAuth
+    window.location.href = "http://localhost:5000/auth/github/login"
   }
 
   const handleSelectRepo = (repo: Repo) => {
@@ -59,7 +70,7 @@ export default function VoiceLoopApp() {
   }
 
   if (currentScreen === "voice" && selectedRepo) {
-    return <VoiceInterface selectedRepo={selectedRepo} onBack={handleBack} />
+    return <VoiceInterface selectedRepo={selectedRepo} onBack={handleBack} token={token} />
   }
 
   return (
@@ -68,6 +79,7 @@ export default function VoiceLoopApp() {
       selectedRepo={selectedRepo}
       onStartCoding={handleStartCoding}
       onSignOut={handleSignOut}
+      token={token}
     />
   )
 }

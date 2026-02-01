@@ -19,6 +19,7 @@ import {
 interface Repo {
   id: number
   name: string
+  full_name: string
   private: boolean
   language: string | null
   updated_at: string
@@ -32,9 +33,10 @@ interface Message {
 interface VoiceInterfaceProps {
   selectedRepo: Repo
   onBack: () => void
+  token: string | null
 }
 
-export function VoiceInterface({ selectedRepo, onBack }: VoiceInterfaceProps) {
+export function VoiceInterface({ selectedRepo, onBack, token }: VoiceInterfaceProps) {
   const [isListening, setIsListening] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [transcript, setTranscript] = useState("")
@@ -42,20 +44,67 @@ export function VoiceInterface({ selectedRepo, onBack }: VoiceInterfaceProps) {
   const [status, setStatus] = useState<"connected" | "listening" | "processing" | "speaking">("connected")
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to latest message
+  const [socket, setSocket] = useState<any>(null)
+
+  // Initialize Socket.IO connection
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
+    // Dynamic import to avoid SSR issues if needed, but standard import is fine for client components
+    const io = require("socket.io-client")
+    const newSocket = io("http://localhost:5000", {
+      transports: ["websocket"],
+      auth: {
+        token: token
+      }
+    })
+
+    newSocket.on("connect", () => {
+      console.log("Connected to Voice Loop Backend")
+      setStatus("connected")
+    })
+
+    newSocket.on("status_change", (data: any) => {
+      // Map backend states to frontend states
+      // Backend: IDLE, ANALYZING, GENERATING, VERIFYING, AUDITING, MERGING
+      console.log("Status change:", data)
+      if (data.state === "ANALYZING" || data.state === "GENERATING") {
+        setStatus("processing")
+      } else if (data.state === "IDLE") {
+        setStatus("connected")
+      }
+
+      // Add system message if description is provided
+      if (data.description) {
+        setMessages((prev) => [...prev, { role: "assistant", content: `[System]: ${data.description}` }])
+      }
+    })
+
+    newSocket.on("audio_output", (data: any) => {
+      // Handle audio stream (for now just log it, or we could play it)
+      console.log("Received audio output", data)
+      setStatus("speaking")
+      // Reset to connected after a bit
+      setTimeout(() => setStatus("connected"), 3000)
+    })
+
+    setSocket(newSocket)
+
+    return () => {
+      newSocket.close()
+    }
+  }, [])
 
   const toggleListening = () => {
     if (isListening) {
       setIsListening(false)
       setTranscript("")
+      // User manually stopped.
+      // In a real STT, we'd send what we have.
+      // Here we assume the simulation finished or user cancelled.
       setStatus("connected")
     } else {
       setIsListening(true)
       setStatus("listening")
-      // Simulate speech recognition
+      // Simulate speech recognition then send to backend
       simulateSpeechRecognition()
     }
   }
@@ -67,7 +116,7 @@ export function VoiceInterface({ selectedRepo, onBack }: VoiceInterfaceProps) {
       "Implement a dark mode toggle feature",
     ]
     const randomPhrase = phrases[Math.floor(Math.random() * phrases.length)]
-    
+
     let currentText = ""
     const words = randomPhrase.split(" ")
     let wordIndex = 0
@@ -79,6 +128,7 @@ export function VoiceInterface({ selectedRepo, onBack }: VoiceInterfaceProps) {
         wordIndex++
       } else {
         clearInterval(interval)
+        // Send to backend!
         handleUserMessage(randomPhrase)
       }
     }, 200)
@@ -88,22 +138,14 @@ export function VoiceInterface({ selectedRepo, onBack }: VoiceInterfaceProps) {
     setMessages((prev) => [...prev, { role: "user", content: text }])
     setTranscript("")
     setIsListening(false)
-    setIsProcessing(true)
-    setStatus("processing")
 
-    // Simulate AI response
-    setTimeout(() => {
-      setStatus("speaking")
-      const responses = [
-        `I'll help you implement that. I'm creating the code for: "${text}". The changes will be committed to ${selectedRepo.name} once you approve.`,
-        `Great idea! I'm generating the code for that feature. You'll be able to review and commit the changes to ${selectedRepo.name}.`,
-        `Working on it! I'll prepare the implementation and stage the changes for your ${selectedRepo.name} repository.`,
-      ]
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)]
-      setMessages((prev) => [...prev, { role: "assistant", content: randomResponse }])
-      setIsProcessing(false)
-      setStatus("connected")
-    }, 2000)
+    if (socket) {
+      // Send to backend
+      socket.emit("end_of_speech", {
+        text: text,
+        repo_name: selectedRepo.full_name
+      })
+    }
   }
 
   const handleEndSession = () => {
@@ -147,12 +189,12 @@ export function VoiceInterface({ selectedRepo, onBack }: VoiceInterfaceProps) {
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
-              
+
               <Badge variant="secondary" className="bg-accent/10 text-accent border-accent/20 px-4 py-1.5">
                 <FolderGit2 className="h-3.5 w-3.5 mr-2" />
                 {selectedRepo.name}
               </Badge>
-              
+
               <Badge variant="secondary" className={`${statusConfig.color} px-3 py-1.5`}>
                 {status === "listening" && (
                   <span className="relative flex h-2 w-2 mr-2">
@@ -191,26 +233,23 @@ export function VoiceInterface({ selectedRepo, onBack }: VoiceInterfaceProps) {
                   {messages.map((msg, idx) => (
                     <div
                       key={idx}
-                      className={`flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300 ${
-                        msg.role === "user" ? "flex-row-reverse" : ""
-                      }`}
+                      className={`flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300 ${msg.role === "user" ? "flex-row-reverse" : ""
+                        }`}
                     >
-                      <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-                        msg.role === "user"
-                          ? "bg-accent/20"
-                          : "bg-secondary"
-                      }`}>
+                      <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${msg.role === "user"
+                        ? "bg-accent/20"
+                        : "bg-secondary"
+                        }`}>
                         {msg.role === "user" ? (
                           <User className="h-5 w-5 text-accent" />
                         ) : (
                           <Bot className="h-5 w-5 text-muted-foreground" />
                         )}
                       </div>
-                      <div className={`max-w-[75%] p-4 rounded-2xl ${
-                        msg.role === "user"
-                          ? "bg-accent text-accent-foreground rounded-br-md"
-                          : "bg-secondary text-foreground rounded-bl-md"
-                      }`}>
+                      <div className={`max-w-[75%] p-4 rounded-2xl ${msg.role === "user"
+                        ? "bg-accent text-accent-foreground rounded-br-md"
+                        : "bg-secondary text-foreground rounded-bl-md"
+                        }`}>
                         <p className="text-sm leading-relaxed">{msg.content}</p>
                       </div>
                     </div>
@@ -244,13 +283,12 @@ export function VoiceInterface({ selectedRepo, onBack }: VoiceInterfaceProps) {
               <button
                 onClick={toggleListening}
                 disabled={isProcessing}
-                className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  isListening
-                    ? "bg-destructive hover:bg-destructive/90 shadow-lg shadow-destructive/40"
-                    : isProcessing
+                className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 ${isListening
+                  ? "bg-destructive hover:bg-destructive/90 shadow-lg shadow-destructive/40"
+                  : isProcessing
                     ? "bg-muted cursor-not-allowed"
                     : "bg-accent hover:bg-accent/90 hover:scale-105 shadow-lg shadow-accent/40"
-                } ${isListening ? "animate-pulse" : ""}`}
+                  } ${isListening ? "animate-pulse" : ""}`}
                 aria-label={isListening ? "Stop listening" : "Start listening"}
               >
                 {isProcessing ? (
@@ -260,7 +298,7 @@ export function VoiceInterface({ selectedRepo, onBack }: VoiceInterfaceProps) {
                 ) : (
                   <Mic className="h-8 w-8 text-accent-foreground" />
                 )}
-                
+
                 {/* Pulse ring animation when listening */}
                 {isListening && (
                   <>
@@ -284,8 +322,8 @@ export function VoiceInterface({ selectedRepo, onBack }: VoiceInterfaceProps) {
               {isListening
                 ? "Speak your idea clearly. I'm listening..."
                 : isProcessing
-                ? "Processing your request..."
-                : "Tap the microphone to start speaking"}
+                  ? "Processing your request..."
+                  : "Tap the microphone to start speaking"}
             </p>
           </CardContent>
         </Card>
