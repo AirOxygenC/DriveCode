@@ -1,11 +1,13 @@
 import os
 import google.generativeai as genai
+from app.utils.rate_limiter import rate_limited
 
 class GenerationService:
     def __init__(self):
         genai.configure(api_key=os.getenv("GEMINI_KEY"))
         self.model = genai.GenerativeModel('gemini-flash-latest')
 
+    @rate_limited
     def generate_code(self, intent, repo_context, file_path=None):
         """
         Generate code based on user intent and repository context.
@@ -52,6 +54,7 @@ class GenerationService:
             print(f"Code generation error: {e}")
             return None
 
+    @rate_limited
     def generate_tests(self, code, file_path, intent):
         """
         Generate tests for the given code.
@@ -97,6 +100,7 @@ class GenerationService:
             print(f"Test generation error: {e}")
             return None
 
+    @rate_limited
     def determine_file_path(self, intent, repo_context):
         """
         Use Gemini to determine the appropriate file path for the code.

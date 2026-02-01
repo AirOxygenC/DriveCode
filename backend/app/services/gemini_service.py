@@ -1,12 +1,14 @@
 import google.generativeai as genai
 import os
 import json
+from app.utils.rate_limiter import rate_limited
 
 class GeminiService:
     def __init__(self):
         genai.configure(api_key=os.getenv("GEMINI_KEY"))
-        self.model = genai.GenerativeModel('gemini-flash-latest')
+        self.model = genai.GenerativeModel('gemini-2.5-flash-lite')
 
+    @rate_limited
     def analyze_intent(self, text, repo_context=None):
         """
         Analyze what the user wants to do.

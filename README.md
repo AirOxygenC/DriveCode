@@ -150,21 +150,3 @@ frontend/
         ├── dashboard.tsx
         └── voice-interface.tsx
 ```
-
-## Limitations & Roadmap
-
-**Current Limitations:**
-- Single file changes per PR
-- No test execution before merge
-- No conflict resolution
-
-**Planned Features:**
-- [ ] Run tests before PR creation
-- [ ] Multi-file changes in single PR
-- [ ] Conflict detection and resolution
-- [ ] CI/CD integration
-- [ ] Rollback mechanism
-
-## License
-
-MIT

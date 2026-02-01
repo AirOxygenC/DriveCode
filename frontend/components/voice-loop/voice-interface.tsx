@@ -43,6 +43,8 @@ export function VoiceInterface({ selectedRepo, onBack, token }: VoiceInterfacePr
   const [messages, setMessages] = useState<Message[]>([])
   const [status, setStatus] = useState<"connected" | "listening" | "processing" | "speaking">("connected")
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const audioQueueRef = useRef<HTMLAudioElement[]>([])
+  const isPlayingRef = useRef(false)
 
   const [socket, setSocket] = useState<any>(null)
 
@@ -81,6 +83,52 @@ export function VoiceInterface({ selectedRepo, onBack, token }: VoiceInterfacePr
     newSocket.on("user_message", (data: any) => {
       setMessages((prev) => [...prev, { role: "user", content: data.content }])
       setTranscript("")
+    })
+
+    newSocket.on("audio_response", (data: any) => {
+      try {
+        console.log("🔊 TTS audio received")
+        const hexString = data.audio
+        const bytes = new Uint8Array(hexString.match(/.{1,2}/g).map((byte: string) => parseInt(byte, 16)))
+        const blob = new Blob([bytes], { type: 'audio/mpeg' })
+        const audioUrl = URL.createObjectURL(blob)
+        const audio = new Audio(audioUrl)
+
+        // Add to queue
+        audioQueueRef.current.push(audio)
+
+        // Start playing if not already playing
+        if (!isPlayingRef.current) {
+          const playNextAudio = () => {
+            if (audioQueueRef.current.length === 0) {
+              isPlayingRef.current = false
+              return
+            }
+
+            isPlayingRef.current = true
+            const audio = audioQueueRef.current.shift()!
+
+            audio.onended = () => {
+              playNextAudio()
+            }
+
+            audio.onerror = (err) => {
+              console.error("❌ Audio playback error:", err)
+              playNextAudio()
+            }
+
+            audio.play()
+              .then(() => console.log("✅ Playing TTS"))
+              .catch(err => {
+                console.error("❌ TTS play error:", err)
+                playNextAudio()
+              })
+          }
+          playNextAudio()
+        }
+      } catch (err) {
+        console.error("❌ TTS processing error:", err)
+      }
     })
 
     newSocket.on("audio_output", (data: any) => {
