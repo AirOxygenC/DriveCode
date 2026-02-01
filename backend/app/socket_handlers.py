@@ -77,6 +77,23 @@ def handle_end_of_speech(data):
         print(f"User said: {user_text}")
         emit('user_message', {'content': user_text})
         
+        # Check if this is a merge confirmation response
+        pending_pr = session.get('pending_pr')
+        if pending_pr:
+            user_text_lower = user_text.lower()
+            # Check for approval keywords
+            approval_keywords = ['yes', 'merge', 'approve', 'go ahead', 'do it', 'sure', 'okay']
+            rejection_keywords = ['no', 'don\'t', 'cancel', 'stop', 'wait']
+            
+            if any(keyword in user_text_lower for keyword in approval_keywords):
+                # User approved - trigger merge
+                handle_confirm_merge({'approved': True})
+                return
+            elif any(keyword in user_text_lower for keyword in rejection_keywords):
+                # User rejected
+                handle_confirm_merge({'approved': False})
+                return
+        
         # Get context from GitHub if token exists
         repo_context = None
         current_repo = data.get('repo_name', 'owner/repo') # Client should send repo name
@@ -139,14 +156,22 @@ def handle_end_of_speech(data):
             
             print(f"PR created: {pr_url}")
             emit('status_change', {'state': 'IDLE', 'description': 'Pull request created!'})
-            emit('pr_created', {'url': pr_url, 'branch': branch_name})
             
-            # Extract PR number from URL for potential auto-merge
-            pr_number = int(pr_url.split('/')[-1])
+            # Store PR info in session for potential merge
+            session['pending_pr'] = {
+                'repo': current_repo,
+                'pr_number': int(pr_url.split('/')[-1]),
+                'url': pr_url,
+                'branch': branch_name
+            }
             
-            # Optional: Auto-merge if tests would pass (for temp repos)
-            # For now, just notify user
-            emit('user_message', {'content': f"✅ Pull request created: {pr_url}"})
+            # Ask user for merge confirmation
+            emit('merge_confirmation_request', {
+                'pr_url': pr_url,
+                'message': f"Pull request created successfully! Do you think it's safe to merge to main?"
+            })
+            emit('user_message', {'content': f"✅ Pull request created: {pr_url}\n\n🤔 Should I merge this to main?"})
+
 
         except Exception as e:
             print(f"Error during agentic workflow: {e}")
@@ -155,7 +180,47 @@ def handle_end_of_speech(data):
     else:
         emit('error', {'message': 'No speech detected'})
 
-@socketio.on('confirm_action')
-def handle_confirm_action(data):
-    # Handle "Yes, deploy it"
-    emit('status_change', {'state': 'MERGING', 'description': 'Merging changes to main...'})
+@socketio.on('confirm_merge')
+def handle_confirm_merge(data):
+    """
+    Handle user confirmation to merge PR.
+    """
+    approved = data.get('approved', False)
+    pending_pr = session.get('pending_pr')
+    
+    if not pending_pr:
+        emit('error', {'message': 'No pending PR to merge'})
+        return
+    
+    if not approved:
+        emit('status_change', {'state': 'IDLE', 'description': 'Merge cancelled by user'})
+        emit('user_message', {'content': '❌ Merge cancelled. PR remains open for manual review.'})
+        session.pop('pending_pr', None)
+        return
+    
+    # User approved - merge the PR
+    try:
+        emit('status_change', {'state': 'MERGING', 'description': 'Merging to main...'})
+        token = session.get('github_token')
+        gh = GitHubService(token)
+        
+        success, message = gh.merge_pull_request(
+            pending_pr['repo'],
+            pending_pr['pr_number'],
+            commit_message=f"Auto-merge by DriveCode (user approved)"
+        )
+        
+        if success:
+            emit('status_change', {'state': 'IDLE', 'description': 'Successfully merged to main!'})
+            emit('user_message', {'content': f"✅ {message}\n\nYour code is now live on main! 🚀"})
+        else:
+            emit('status_change', {'state': 'IDLE', 'description': 'Merge failed'})
+            emit('user_message', {'content': f"❌ {message}"})
+        
+        session.pop('pending_pr', None)
+        
+    except Exception as e:
+        print(f"Error merging PR: {e}")
+        emit('status_change', {'state': 'IDLE', 'description': f'Merge error: {str(e)}'})
+        emit('error', {'message': f'Failed to merge: {str(e)}'})
+
