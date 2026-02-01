@@ -57,3 +57,16 @@ class GitHubService:
         # Create PR
         pr = repo.create_pull(title=title, body=body, head=branch_name, base="main")
         return pr.html_url
+
+    def merge_pull_request(self, repo_name, pr_number, commit_message="Auto-merge by DriveCode"):
+        """
+        Merge a pull request after validation.
+        """
+        repo = self.get_repo(repo_name)
+        pr = repo.get_pull(pr_number)
+        
+        if pr.mergeable:
+            pr.merge(commit_message=commit_message, merge_method="squash")
+            return True, "PR merged successfully"
+        else:
+            return False, "PR is not mergeable (conflicts or checks failing)"
